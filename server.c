@@ -43,14 +43,14 @@ void func(int connfd)
 
 	count = yippee();
 
-	char meep = (char) (count-1 + '0');
+	sprintf(buff, "%d", count);
 
 	//buff[n] = count;
 
 	printf("here %d\n", count);
 
         // and send that buffer to client 
-        write(connfd,(char*) &count, sizeof(count));
+        write(connfd, buff, sizeof(buff));
 
         // if msg contains "Exit" then server exit and chat ended. 
         if (strncmp("exit", buff, 4) == 0) {
