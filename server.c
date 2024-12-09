@@ -18,7 +18,12 @@
 #define SA struct sockaddr 
 
 
-int yippee();
+//Declare the function is going to be used here, the file contain the function MUST NOT HAVE A MAIN FUCNTION
+//
+// For example, if I want to use calculate_fibonacci:
+//
+
+long calculate_fibonacci(int n);
                      
 // Function designed for chat between client and server. 
 void func(int connfd)
@@ -35,19 +40,23 @@ void func(int connfd)
         read(connfd, buff, sizeof(buff));
         // print buffer which contains the client contents 
         printf("From client: %s\t To client : ", buff);
+	//Do specific action depend on what the msg contain. This is just a mockup
+	if (strncmp("request", buff, 7) == 0){
+	printf("respond");
+	};
+	// Reset the buffer
         bzero(buff, MAX);
-        n = 0;
-        // copy server message in the buffer 
+	
+	// copy server message in the buffer 
         // while ((buff[n++] = getchar()) != '\n')
-        //    ;
-
-	count = yippee();
-
-	sprintf(buff, "%d", count);
-
-	//buff[n] = count;
-
-	printf("here %d\n", count);
+        //   ;
+	
+	// Change buffer to the respond of your function, this will be sent back the client
+	// For example
+	
+	long res = calculate_fibonacci(11);
+	
+	sprintf( buff, "%ld", res );
 
         // and send that buffer to client 
         write(connfd, buff, sizeof(buff));
