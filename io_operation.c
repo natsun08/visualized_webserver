@@ -50,32 +50,6 @@ Event dequeue(EventQueue* q) {
     }
 }
 
-// char* load_data (void* args) {  
-//     IoArgs* io_args = (IoArgs*) args;
-//     const char* filename = io_args->filename; 
-//     size_t* file_size = &(io_args->file_size);
-
-//     FILE* file = fopen(filename, "r");
-
-//     if (file == NULL) {
-//         printf("Error while opening file");
-//         return NULL;
-//     }
-
-//     fseek(file, 0, SEEK_END);
-//     *file_size = ftell(file);
-//     rewind(file);
-
-//     char* buffer = (char*)malloc(*file_size);
-//     if (!buffer) {
-//         printf("Error allocating memory");
-//         fclose(file);
-//         return NULL;
-//     }
-//     fread(buffer, 1, *file_size, file);
-//     fclose(file);
-//     return buffer; 
-// }
 char* load_data (void* args) {  
     IoArgs* io_args = (IoArgs*) args;
     const char* filename = io_args->filename; 
