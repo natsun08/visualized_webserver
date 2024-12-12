@@ -1,93 +1,157 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 #define MAX_EVENTS_DEFAULT 10
+#define EVENT_TYPE_FIBONACCI 1
 
 typedef struct {
   int id;
+  int event_type; // Type of event
+  void* event_data; // Pointer to event-specific data
+  bool done;
+  bool result_reported;
+  void (*handler)(void*); // Event handler function
+} Event;
+
+typedef struct {
   int n;
   long long result;
   long long a, b;
   int current_step;
-  bool done;
-  bool result_reported; // report result
-} FibonacciEvent;
+} FibonacciData;
 
-static FibonacciEvent events[MAX_EVENTS_DEFAULT];
-static int max_events = MAX_EVENTS_DEFAULT; 
-static int num_events = 0;
-// static bool start_event_loop = false; // only starts when all events are added (max event reached)
+// Event Queue
+typedef struct {
+  Event events[MAX_EVENTS_DEFAULT];
+  int front;
+  int rear;
+  int size;
+} EventQueue;
 
-void add_event(int id, int n) {
-  if (num_events >= max_events) {
-    printf("Error: Maximum number of events reached.\n");
-    return;
-  }
-  
-  events[num_events].id = id;
-  events[num_events].n = n;
-  events[num_events].result = 0;
-  events[num_events].a = 0;
-  events[num_events].b = 1;
-  events[num_events].current_step = 2;
-  events[num_events].done = false;
-  events[num_events].result_reported = false; 
-  num_events++;
+// Initialize the event queue
+void initialize_queue(EventQueue* q) {
+  q->front = 0;
+  q->rear = 0;
+  q->size = 0;
 }
 
-// Process a single event
-void process_event(FibonacciEvent *event) {
-  if (event->done) return;
-  
-  if (event->n <= 1) {
-    event->result = event->n;
-    event->done = true;
-    return;
-  }
-  
-  if (event->current_step <= event->n) {
-    long long temp = event->a + event->b;
-    event->a = event->b;
-    event->b = temp;
-    event->result = event->b;
-    event->current_step++;
-  }
-  
-  if (event->current_step > event->n) {
-    event->done = true;
-  }
+// Check if the queue is empty
+bool is_empty(EventQueue* q) {
+  return q->size == 0;
 }
 
-void event_loop() {
-    // if (!start_event_loop) {
-    //     printf("Event loop not started. Add more events to reach the limit (%d required).\n", max_events);
-    //     return;
-    // }
+// Check if the queue is full
+bool is_full(EventQueue* q) {
+  return q->size == MAX_EVENTS_DEFAULT;
+}
+
+// Add an event to the queue
+void enqueue(EventQueue* q, Event event) {
+  if (is_full(q)) {
+    printf("Error: Event queue is full.\n");
+    return;
+  }
+  q->events[q->rear] = event;
+  q->rear = (q->rear + 1) % MAX_EVENTS_DEFAULT;
+  q->size++;
+}
+
+// Remove an event from the queue
+Event dequeue(EventQueue* q) {
+  if (is_empty(q)) {
+    printf("Error: Event queue is empty.\n");
+    Event empty_event = {0};
+    return empty_event;
+  }
+  Event event = q->events[q->front];
+  q->front = (q->front + 1) % MAX_EVENTS_DEFAULT;
+  q->size--;
+  return event;
+}
+
+// Fibonacci handler
+void fibonacci_handler(void* data) {
+  FibonacciData* fib_data = (FibonacciData*)data;
+  
+  if (fib_data->n <= 1) {
+    fib_data->result = fib_data->n;
+    return; // Mark it as done automatically when n <= 1
+  }
+  
+  // Perform Fibonacci calculations iteratively
+  while (fib_data->current_step <= fib_data->n) {
+    long long temp = fib_data->a + fib_data->b;
+    fib_data->a = fib_data->b;
+    fib_data->b = temp;
+    fib_data->current_step++;
+  }
+  
+  // Once the loop completes, we have the result
+  fib_data->result = fib_data->b;
+}
+
+
+void event_loop(EventQueue* q) {
   printf("Event loop started. Processing events...\n");
-  while (1) { 
-    bool all_done = true;
-    for (int i = 0; i < num_events; i++) {
-      if (!events[i].done) {
-        process_event(&events[i]);
-        all_done = false;
+  fflush(stdout);
+  
+  while (1) {
+    if (!is_empty(q)) {
+      printf("Event detected in queue. Attempting to dequeue...\n");
+      fflush(stdout);
+      
+      Event event = dequeue(q);
+      
+      printf("Dequeued Event ID %d. Processing...\n", event.id);
+      fflush(stdout);
+      
+      if (!event.done && event.handler) {
+        event.handler(event.event_data);
+        event.done = true;
+        
+        if (!event.result_reported) {
+          if (event.event_type == EVENT_TYPE_FIBONACCI) {
+            FibonacciData* fib_data = (FibonacciData*)event.event_data;
+            printf("Event ID %d: Fibonacci(%d) = %lld\n", event.id, fib_data->n, fib_data->result);
+            fflush(stdout);
+            free(fib_data); // Free allocated memory
+          }
+          event.result_reported = true;
+        }
       }
-      if (events[i].done && !events[i].result_reported) {
-        printf("Event ID %d: Fibonacci(%d) = %lld\n", events[i].id, events[i].n, events[i].result);
-        events[i].result_reported = true; 
-      }
+    } else {
+      usleep(1000); // Sleep briefly
     }
-    usleep(1000); 
   }
 }
 
-// returns an array of results
-// long long* get_results(int *count) {
-//     *count = num_events; 
-//     static long long results[MAX_EVENTS_DEFAULT];
-//     for (int i = 0; i < num_events; i++) {
-//         results[i] = events[i].result; 
-//     }
-//     return results; // array of results
-// }
+
+
+// Add Fibonacci event
+void add_fibonacci_event(EventQueue* q, int id, int n) {
+  if (is_full(q)) {
+    printf("Error: Cannot add event. Queue is full.\n");
+    return;
+  }
+  
+  FibonacciData* fib_data = (FibonacciData*)malloc(sizeof(FibonacciData));
+  fib_data->n = n;
+  fib_data->a = 0;
+  fib_data->b = 1;
+  fib_data->current_step = 2;
+  fib_data->result = 0;
+  
+  Event event = {
+    .id = id,
+    .event_type = EVENT_TYPE_FIBONACCI,
+    .event_data = fib_data,
+    .done = false,
+    .result_reported = false,
+    .handler = fibonacci_handler
+  };
+  
+  enqueue(q, event);
+}
 
