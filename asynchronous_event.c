@@ -2,8 +2,9 @@
 #include <stdbool.h>
 #include <unistd.h>
 
-#define MAX_EVENTS 10
+#define MAX_EVENTS_DEFAULT 10
 
+// Structure to represent an event
 typedef struct {
     int id;
     int n;
@@ -13,11 +14,13 @@ typedef struct {
     bool done;
 } FibonacciEvent;
 
-static FibonacciEvent events[MAX_EVENTS];
+static FibonacciEvent events[MAX_EVENTS_DEFAULT];
+static int max_events = MAX_EVENTS_DEFAULT; 
 static int num_events = 0;
+// static bool start_event_loop = false; // only starts when all events are added (max event reached)
 
 void add_event(int id, int n) {
-    if (num_events >= MAX_EVENTS) {
+    if (num_events >= max_events) {
         printf("Error: Maximum number of events reached.\n");
         return;
     }
@@ -30,6 +33,10 @@ void add_event(int id, int n) {
     events[num_events].current_step = 2;
     events[num_events].done = false;
     num_events++;
+
+    if (num_events == max_events) {
+        start_event_loop = true; 
+    }
 }
 
 // Process a single event
@@ -57,6 +64,12 @@ void process_event(FibonacciEvent *event) {
 
 // Event loop to process all events
 void event_loop() {
+    // if (!start_event_loop) {
+    //     printf("Event loop not started. Add more events to reach the limit (%d required).\n", max_events);
+    //     return;
+    // }
+
+    printf("Event loop started. Processing events...\n");
     bool all_done;
     do {
         all_done = true;
@@ -66,6 +79,18 @@ void event_loop() {
                 all_done = false;
             }
         }
-        usleep(1000); 
+        usleep(1000); // Sleep to reduce CPU usage
     } while (!all_done);
+    printf("Event loop completed. All events processed.\n");
 }
+
+// returns an array of results
+long long* get_results(int *count) {
+    *count = num_events; 
+    static long long results[MAX_EVENTS_DEFAULT];
+    for (int i = 0; i < num_events; i++) {
+        results[i] = events[i].result; 
+    }
+    return results; // array of results
+}
+
