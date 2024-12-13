@@ -12,8 +12,9 @@ typedef struct {
   void* event_data; // Pointer to event-specific data
   bool done;
   bool result_reported;
-  void (*handler)(void*); // Event handler function
+  long long (*handler)(void*); // Event handler function with a return type
 } Event;
+
 
 typedef struct {
   int n;
@@ -72,12 +73,12 @@ Event dequeue(EventQueue* q) {
 }
 
 // Fibonacci handler
-void fibonacci_handler(void* data) {
+long long fibonacci_handler(void* data) {
   FibonacciData* fib_data = (FibonacciData*)data;
   
   if (fib_data->n <= 1) {
     fib_data->result = fib_data->n;
-    return; // Mark it as done automatically when n <= 1
+    return fib_data->result; // Return result directly for n <= 1
   }
   
   // Perform Fibonacci calculations iteratively
@@ -88,8 +89,8 @@ void fibonacci_handler(void* data) {
     fib_data->current_step++;
   }
   
-  // Once the loop completes, we have the result
   fib_data->result = fib_data->b;
+  return fib_data->result; // Return the result
 }
 
 
