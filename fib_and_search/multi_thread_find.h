@@ -9,7 +9,7 @@
 
 // Multi-threaded search functions
 void AcceptInput(int* array, int size, int key);
-int MultiThreadSearch(); // Updated function
 void* ThreadSearch(void* args);
+void OutputResult();
 
 #endif // MULTI_THREAD_FIND_H
