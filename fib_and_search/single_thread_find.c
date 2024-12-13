@@ -3,12 +3,13 @@
 #include "common.h"
 
 // Linear search function for a single thread
-void SingleThreadSearch() {
+int SingleThreadSearch() {
   for (int i = 0; i < searchInput.size; i++) {
     if (searchInput.array[i] == searchInput.key) {
       printf("Key element found\n");
-      return;
+      return 1; // Key found
     }
   }
   printf("Key not present\n");
+  return 0; // Key not present
 }
