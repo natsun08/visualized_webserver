@@ -40,7 +40,7 @@ typedef struct {
     IoEvent events[MAX_SIZE]; 
     int front; 
     int rear; 
-} EventQueue;
+} IoEventQueue;
 
 void initialize_queue(EventQueue* q);
 bool is_empty(EventQueue* q);
