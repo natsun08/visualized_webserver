@@ -37,7 +37,7 @@ typedef struct {
 
 typedef struct {
     // int event_type; 
-    Event events[MAX_SIZE]; 
+    IoEvent events[MAX_SIZE]; 
     int front; 
     int rear; 
 } EventQueue;
@@ -70,7 +70,7 @@ void* event_based(IoEvent event, int event_num, int connfd, char* buff, int buff
 
     // Process events
     for (int i = 0; i < event_num; i++) {
-        Event current_event = dequeue(queue);
+        IoEvent current_event = dequeue(queue);
         if (current_event.handler) {
             char* file_data = current_event.handler(current_event.event_data);
             if (file_data == NULL) {
