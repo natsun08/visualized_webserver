@@ -1,12 +1,9 @@
-#include <sys/socket.h>
 #include <string.h>
+#include <pthread.h>
 #include <fcntl.h>
-#include <sys/sendfile.h>
 #include <netinet/in.h>
 #include <unistd.h> 
-#include <stdio.h> 
-#include <netdb.h> 
-#include <netinet/in.h> 
+#include <stdio.h>  
 #include <stdlib.h> 
 #include <string.h> 
 #include <sys/socket.h> 
@@ -14,15 +11,25 @@
 #include <unistd.h>
 #include <stdbool.h>
 #include <time.h>
+#include "asyn.h"
+#include <sys/resource.h> 
+#include <sys/time.h>
 
-#define MAX 80 
-#define PORT 8080 
-#define SA struct sockaddr 
+#define MAX 1000 
+
 
 long calculate_fibonacci(int n);
-long calculate_fibonacci_multithreaded(int n);                
-void add_event(int id, int n);                               
-void event_loop();
+long calculate_fibonacci_multithreaded(int n);                                             
+long fibonacci_handler(int data) ;
+struct rusage cpu_usage_baseline;
+int total_requests = 0;
+int requests_processed = 0;
+int active_connections = 0;
+pthread_mutex_t metrics_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t throughput_lock = PTHREAD_MUTEX_INITIALIZER;
+
+
+
 
 long long get_time_in_nanoseconds() {
     struct timespec ts;
@@ -30,129 +37,126 @@ long long get_time_in_nanoseconds() {
     return ts.tv_sec * 1000000000LL + ts.tv_nsec;
 }
 
-// Function designed for chat between client and server. 
-void func(int connfd) {
-    char buff[MAX];
-    int index;
-    
-    for (;;) {
-        bzero(buff, MAX);
-        int bytes_read = read(connfd, buff, sizeof(buff));
-        
-        if (bytes_read <= 0) {
-            printf("Client disconnected or error occurred.\n");
-            break;
-        }
-        if (strlen(buff) == 0) {
-            // Skip empty inputs
-            continue;
-        }
-        
-        printf("From client: %s\n", buff);
-        
-        if (strncmp("exit", buff, 4) == 0) {
-            printf("Server Exit...\n");
-            break;
-        }
+//get time of each function 
+char *time_calculate(int connfd, long (*f)(int) ) {
+    char* buff = malloc(MAX);
+    bzero(buff, MAX);
+    //int index;
 
-        long long start_time = get_time_in_nanoseconds();
+    long long start_time = get_time_in_nanoseconds();
+  
+    long res = (*f)(10);
+                       
+    long long end_time = get_time_in_nanoseconds();
         
-        char *token = strtok(buff, " ");
-        char response[MAX] = {0};  // Zero-initialize entire buffer
-        
-        while (token != NULL) {
-            // Add error checking for conversion
-            char *endptr;
-            long index = strtol(token, &endptr, 10);
-            
-            // Check for conversion errors
-            if (token == endptr) {
-                printf("Conversion error for token: %s\n", token);
-                continue;
-            }
-            
-            long res = calculate_fibonacci_multithreaded(index);
-            
-            // Use snprintf for safer concatenation
-            size_t remaining = sizeof(response) - strlen(response) - 1;
-            snprintf(response + strlen(response), remaining, "%ld ", res);
-            
-            token = strtok(NULL, " ");
-        }
+    // Calculate execution time
+    long long execution_time = end_time - start_time;
+    sprintf( buff, "Time:  %lld, Answer: %ld", execution_time, res);
+    return buff;
+   }
 
-        // End time measurement
-        long long end_time = get_time_in_nanoseconds();
-        
-        // Calculate execution time
-        long long execution_time = end_time - start_time;
-        
-        // Ensure null-termination and trim trailing space
-        response[sizeof(response) - 1] = '\0';
-        size_t len = strlen(response);
-        if (len > 0 && response[len-1] == ' ') {
-            response[len-1] = '\0';
-        }
-        
-        if (strlen(response) > 0) {
-            write(connfd, response, strlen(response));
-            printf("From Server: %s\n", response);
-            printf("Execution Time: %lld ns\n", execution_time);
-        }
+// CPU
+char *log_cpu_usage() {
+  char* buff = malloc(MAX);
+  bzero(buff, MAX);
+  struct rusage current_usage;
+  getrusage(RUSAGE_SELF, &current_usage);
+
+
+  long user_time_sec = current_usage.ru_utime.tv_sec - cpu_usage_baseline.ru_utime.tv_sec;
+  long user_time_usec = current_usage.ru_utime.tv_usec - cpu_usage_baseline.ru_utime.tv_usec;
+  long system_time_sec = current_usage.ru_stime.tv_sec - cpu_usage_baseline.ru_stime.tv_sec;
+  long system_time_usec = current_usage.ru_stime.tv_usec - cpu_usage_baseline.ru_stime.tv_usec;
+
+  if (user_time_usec < 0) {
+    user_time_usec += 1000000;
+    user_time_sec -= 1;
+  }
+  if (system_time_usec < 0) {
+    system_time_usec += 1000000;
+    system_time_sec -= 1;
+  }
+
+  sprintf(buff, "CPU Time Used (since reset): User = %ld.%ld sec, System = %ld.%ld sec\n",
+         user_time_sec, user_time_usec, system_time_sec, system_time_usec);
+ return buff;
+
+}
+
+void reset_cpu_usage() {
+  getrusage(RUSAGE_SELF, &cpu_usage_baseline);
+  printf("CPU usage baseline reset.\n");
+}
+
+// Throughput
+void *log_throughput(void *arg) {
+    while (1) {
+        sleep(1); 
+        pthread_mutex_lock(&throughput_lock);
+        printf("Throughput: %d requests/second\n", requests_processed);
+        requests_processed = 0; // Reset
+        pthread_mutex_unlock(&throughput_lock);
     }
+    return NULL;}
+    
+    
+char *throughput_calculate(){
+	    char* buff = malloc(MAX);
+   	    bzero(buff, MAX);  
+
+            char* CPU_usage = log_cpu_usage();
+	    
+	    pthread_mutex_lock(&metrics_lock);
+      	    total_requests++;
+     	    pthread_mutex_unlock(&metrics_lock);
+
+     	    pthread_mutex_lock(&throughput_lock);
+     	    requests_processed++;
+      	    pthread_mutex_unlock(&throughput_lock);
+            
+	    pthread_mutex_lock(&metrics_lock);
+            pthread_mutex_lock(&throughput_lock);
+            sprintf(buff, "%s \nTotal Requests: %d, Active Connections: %d, Throughput: %d requests/sec",
+                    CPU_usage, total_requests, active_connections, requests_processed);
+            pthread_mutex_unlock(&throughput_lock);
+            pthread_mutex_unlock(&metrics_lock);
+            
+
+  pthread_mutex_lock(&metrics_lock);
+  active_connections--;
+  pthread_mutex_unlock(&metrics_lock);
+
+ return buff;
 }
 
 
-void main(){
+
+char* run_metrics(){
+ int meo;
+ char* buff = malloc(MAX);
+ bzero(buff, MAX);
+
+ char* event = time_calculate(meo, fibonacci_handler);
+ char* event_CPU = log_cpu_usage();
+ reset_cpu_usage();
+
+ char* single  = time_calculate(meo, calculate_fibonacci);
+ char* single_CPU  = log_cpu_usage();
+ reset_cpu_usage();
+
+ char* multi = time_calculate(meo, calculate_fibonacci_multithreaded);
+ char* multi_CPU = log_cpu_usage();
+ reset_cpu_usage();
+// char* event_CPU = CPU_calculate(meo, event_loop);
+// char* single_CPU = CPU_calculate(meo, calculate_fibonacci);
+ //char* multi_CPU = CPU_calculate(meo, calculate_fibonacci_multithreaded);
+
  
-    int sockfd, connfd, len; 
-    struct sockaddr_in servaddr, cli; 
-  
-    // socket create and verification 
-    sockfd = socket(AF_INET, SOCK_STREAM, 0); 
-    if (sockfd == -1) { 
-        printf("socket creation failed...\n"); 
-        exit(0); 
-    } 
-    else
-        printf("Socket successfully created..\n"); 
-    bzero(&servaddr, sizeof(servaddr)); 
-  
-    // assign IP, PORT 
-    servaddr.sin_family = AF_INET; 
-    servaddr.sin_addr.s_addr = htonl(INADDR_ANY); 
-    servaddr.sin_port = htons(PORT); 
-    // Binding newly created socket to given IP and verification 
-    if ((bind(sockfd, (SA*)&servaddr, sizeof(servaddr))) != 0) { 
-        printf("socket bind failed...\n"); 
-        exit(0); 
-    } 
-    else
-        printf("Socket successfully binded..\n"); 
-  
-    // Now server is ready to listen and verification 
-    if ((listen(sockfd, 5)) != 0) { 
-        printf("Listen failed...\n"); 
-        exit(0); 
-    } 
-    else
-        printf("Server listening..\n"); 
-    len = sizeof(cli); 
-  
-    // Accept the data packet from client and verification 
-    connfd = accept(sockfd, (SA*)&cli, &len); 
-    if (connfd < 0) { 
-        printf("server accept failed...\n"); 
-        exit(0); 
-    } 
-    else
-        printf("server accept the client...\n"); 
-  
-    // Function for chatting between client and server 
-    func(connfd); 
-  
-    // After chatting close the socket 
-    close(sockfd); 
-} 
+ sprintf(buff, "Single: %s\n %s\nMulti: %s\n %s\nAsync: %s\n %s\n ", single, single_CPU, multi, multi_CPU, event, event_CPU);
+ close(meo);
+ return buff;
+}
 
-
-
+//void main(){
+// char* metrics = run_metrics();
+// printf("%s", metrics);}

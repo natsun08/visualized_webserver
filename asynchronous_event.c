@@ -9,10 +9,10 @@
 typedef struct {
   int id;
   int event_type; // Type of event
-  void* event_data; // Pointer to event-specific data
+  int event_data; // Pointer to event-specific data
   bool done;
   bool result_reported;
-  void (*handler)(void*); // Event handler function
+  long (*handler)(int); // Event handler function
 } Event;
 
 typedef struct {
@@ -72,12 +72,17 @@ Event dequeue(EventQueue* q) {
 }
 
 // Fibonacci handler
-void fibonacci_handler(void* data) {
-  FibonacciData* fib_data = (FibonacciData*)data;
-  
+long fibonacci_handler(int data) {
+  FibonacciData* fib_data = (FibonacciData*)malloc(sizeof(FibonacciData));
+  fib_data->n = data;
+  fib_data->a = 0;
+  fib_data->b = 1;
+  fib_data->current_step = 2;
+  fib_data->result = 0;
+
   if (fib_data->n <= 1) {
     fib_data->result = fib_data->n;
-    return; // Mark it as done automatically when n <= 1
+    return fib_data->result; // Mark it as done automatically when n <= 1
   }
   
   // Perform Fibonacci calculations iteratively
@@ -90,6 +95,7 @@ void fibonacci_handler(void* data) {
   
   // Once the loop completes, we have the result
   fib_data->result = fib_data->b;
+  return fib_data->result;
 }
 
 
@@ -113,7 +119,7 @@ void event_loop(EventQueue* q) {
         
         if (!event.result_reported) {
           if (event.event_type == EVENT_TYPE_FIBONACCI) {
-            FibonacciData* fib_data = (FibonacciData*)event.event_data;
+            FibonacciData* fib_data = (FibonacciData*)&event.event_data;
             printf("Event ID %d: Fibonacci(%d) = %lld\n", event.id, fib_data->n, fib_data->result);
             fflush(stdout);
             free(fib_data); // Free allocated memory

@@ -13,7 +13,7 @@
 #include <sys/types.h> 
 #include <unistd.h>
 
-#define MAX 80 
+#define MAX 10000 
 #define PORT 8080 
 #define SA struct sockaddr 
 
@@ -23,8 +23,11 @@
 // For example, if I want to use calculate_fibonacci:
 //
 
-long calculate_fibonacci(int n);
-                     
+char* run_metrics();
+
+
+
+
 // Function designed for chat between client and server. 
 void func(int connfd)
 {
@@ -46,17 +49,11 @@ void func(int connfd)
 	};
 	// Reset the buffer
         bzero(buff, MAX);
-	
-	// copy server message in the buffer 
-        // while ((buff[n++] = getchar()) != '\n')
-        //   ;
-	
-	// Change buffer to the respond of your function, this will be sent back the client
 	// For example
 	
-	long res = calculate_fibonacci(11);
+	char* res = run_metrics();
 	
-	sprintf( buff, "%ld", res );
+	sprintf( buff, "%s", res );
 
         // and send that buffer to client 
         write(connfd, buff, sizeof(buff));
