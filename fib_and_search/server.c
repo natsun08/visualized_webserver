@@ -85,6 +85,7 @@ void *log_throughput(void *arg) {
 // Function designed for chat between client and server. 
 void func(int connfd) {
   char buff[MAX];
+  char result[MAX];
   int n;
   static int event_id = 0;
   
@@ -152,17 +153,10 @@ void func(int connfd) {
       
       } else if (server_mode == 1) { // Multi-threaded search
         AcceptInput(array, size, n);
-        pthread_t threads[thread_max];
-        for (int i = 0; i < thread_max; i++) {
-          pthread_create(&threads[i], NULL, ThreadSearch, NULL);       
-        }
-        for (int i = 0; i < thread_max; i++) {
-          pthread_join(threads[i], NULL);
-        }
-        OutputResult();
-               long long end_ns = get_time_in_nanoseconds();
+        MultiThreadSearch(result);
+        long long end_ns = get_time_in_nanoseconds();
         long long exec_time_ns = end_ns - start_ns;
-       	snprintf(buff, sizeof(buff), "Search completed in %lld ns (Multi-threaded). Check server logs for results.", exec_time_ns);
+        snprintf(buff, sizeof(buff), "%s", result);
 
       } else if (server_mode == 2) { // Event-driven search
         SearchInput task = {array, size, n};
