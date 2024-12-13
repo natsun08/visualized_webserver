@@ -5,6 +5,6 @@
 
 // Single-threaded search functions
 void AcceptInput(int* array, int size, int key);
-void SingleThreadSearch();
+int SingleThreadSearch(); 
 
 #endif // SINGLE_THREAD_FIND_H
