@@ -14,7 +14,7 @@
 #include "multi_thread_find.h"
 #include "single_thread_find.h"
 
-#define MAX 1000
+#define MAX 200
 #define PORT 8080
 #define SA struct sockaddr
 
@@ -85,7 +85,6 @@ void *log_throughput(void *arg) {
 // Function designed for chat between client and server. 
 void func(int connfd) {
   char buff[MAX];
-  char result[MAX];
   int n;
   static int event_id = 0;
   
@@ -116,7 +115,7 @@ void func(int connfd) {
         sprintf(buff, "Fibonacci(%d) = %ld (Execution time: %lld ns, Multi-threaded)", n, result, exec_time_ns);
       } else if (server_mode == 2) { // Event-driven
         add_fibonacci_event(&event_queue, event_id++, n);
-       	snprintf(buff, sizeof(buff), "Fibonacci request for %d queued as event %d (Event-driven)", n,  event_id - 1);
+        snprintf(buff, sizeof(buff), "Fibonacci request for %d queued as event %d (Event-driven)", n, event_id - 1);
       }
       
       pthread_mutex_lock(&metrics_lock);
@@ -130,34 +129,29 @@ void func(int connfd) {
     } else if (strncmp("search", buff, 6) == 0) {
       int size;
       int array[MAX];
-     
+      
       // Read array size and elements
       read(connfd, &size, sizeof(int));
       read(connfd, array, sizeof(int) * size);
       
       // Extract key to search
       sscanf(buff + 7, "%d", &n);
-     
-      long long start_ns = get_time_in_nanoseconds(); 
       
       if (server_mode == 0) { // Single-threaded search
         AcceptInput(array, size, n);
-        int result = SingleThreadSearch();
-        long long end_ns = get_time_in_nanoseconds();
-        long long exec_time_ns = end_ns - start_ns;
-	if (result == 1){
-      	snprintf(buff, sizeof(buff), "Search completed in %lld ns (Single-threaded). Key is found", exec_time_ns);}
-	else{
-	 snprintf(buff, sizeof(buff), "Search completed in %lld ns (Single-threaded). Key is not found", exec_time_ns);}
-	
-      
+        SingleThreadSearch();
+        snprintf(buff, sizeof(buff), "Search completed (Single-threaded). Check server logs for results.");
       } else if (server_mode == 1) { // Multi-threaded search
         AcceptInput(array, size, n);
-        MultiThreadSearch(result);
-        long long end_ns = get_time_in_nanoseconds();
-        long long exec_time_ns = end_ns - start_ns;
-        snprintf(buff, sizeof(buff), "%s", result);
-
+        pthread_t threads[thread_max];
+        for (int i = 0; i < thread_max; i++) {
+          pthread_create(&threads[i], NULL, ThreadSearch, NULL);
+        }
+        for (int i = 0; i < thread_max; i++) {
+          pthread_join(threads[i], NULL);
+        }
+        OutputResult();
+        snprintf(buff, sizeof(buff), "Search completed (Multi-threaded). Check server logs for results.");
       } else if (server_mode == 2) { // Event-driven search
         SearchInput task = {array, size, n};
         Enqueue(task);
