@@ -30,13 +30,13 @@ typedef struct {
 
 typedef char* (*EventHandler)(void*);
 typedef struct {
-    int event_type; 
+    // int event_type; 
     void* event_data; 
     EventHandler handler; 
-} Event; 
+} IoEvent; 
 
 typedef struct {
-    int event_type; 
+    // int event_type; 
     Event events[MAX_SIZE]; 
     int front; 
     int rear; 
@@ -50,7 +50,7 @@ char* io_handler(void* data);
 void* load_file_thread(void* arg); 
 char* load_data_chunked(void* args); 
 
-void* event_based(Event event, int event_num, int connfd, char* buff, int buff_size, int count) {
+void* event_based(IoEvent event, int event_num, int connfd, char* buff, int buff_size, int count) {
     EventQueue queue_instance;
     EventQueue* queue = &queue_instance;
     initialize_queue(queue);
