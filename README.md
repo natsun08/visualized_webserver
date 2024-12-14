@@ -17,11 +17,12 @@ In our program, we use three problems to measure and contrast the performance of
 - Searching an array for an element.
 - Performing an I/O-bound task: simulating a server handling 10 simultaneous requests by loading a 2MB file 10 times, using threads and event queue.
 
-To run an algorithm, first set the mode for the server: 
+To run an algorithm: 
+1. Set the desired mode for the server: 
 - Enter "3" for single-threaded mode.
 - Enter "4" for multi-threaded mode.
 - Enter "5" for event-based mode.
-Then choose the desired algorithm based on the menu displayed on the terminal.
+2. Choose the desired algorithm based on the menu displayed on the terminal.
 
 To view the CPU time of the current mode (i.e., single-threaded, multi-threaded, and event-básed), enter "7". 
 
