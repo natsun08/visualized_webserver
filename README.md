@@ -22,5 +22,5 @@ To run an algorithm, first set the mode for the server:
 - Enter "4" for multi-threaded mode.
 - Enter "5" for event-based mode.
 Then choose the desired algorithm based on the menu displayed on the terminal.
-To view the CPU user time and CPU kernel time for the current mode (i.e., single-threaded, multi-threaded, and event-básed), enter "7". 
+To view the CPU time of the current mode (i.e., single-threaded, multi-threaded, and event-básed), enter "7". 
 
